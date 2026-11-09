@@ -1,0 +1,63 @@
+name: CI
+
+# Compiles each sketch for its board: the jellibi car code for an Arduino Nano,
+# as the README says, and the three sketches that use BluetoothSerial (ESP32
+# only) for an ESP32. Arduino needs every sketch in a folder of the same name,
+# so each .ino is copied into its own folder first. Nothing is uploaded.
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  ESP32_INDEX: https://espressif.github.io/arduino-esp32/package_esp32_index.json
+
+jobs:
+  compile:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - sketch: jellibi
+            core: arduino:avr
+            fqbn: arduino:avr:nano
+          - sketch: Vehicle
+            core: arduino:avr
+            fqbn: arduino:avr:nano
+          - sketch: esp32
+            core: esp32:esp32
+            fqbn: esp32:esp32:esp32
+          - sketch: ProjectSignal
+            core: esp32:esp32
+            fqbn: esp32:esp32:esp32
+            libraries: MFRC522
+          - sketch: infra
+            core: esp32:esp32
+            fqbn: esp32:esp32:esp32
+            libraries: MFRC522 ESP32Servo
+    name: ${{ matrix.sketch }} (${{ matrix.fqbn }})
+    steps:
+      - uses: actions/checkout@v7
+      - uses: arduino/setup-arduino-cli@v2
+      - name: Install the board core
+        run: |
+          arduino-cli core update-index --additional-urls "$ESP32_INDEX"
+          arduino-cli core install "${{ matrix.core }}" --additional-urls "$ESP32_INDEX"
+      - name: Install libraries
+        if: matrix.libraries != ''
+        run: arduino-cli lib install ${{ matrix.libraries }}
+      - name: Compile ${{ matrix.sketch }}.ino
+        run: |
+          mkdir -p "build/${{ matrix.sketch }}"
+          cp "${{ matrix.sketch }}.ino" "build/${{ matrix.sketch }}/"
+          arduino-cli compile --fqbn "${{ matrix.fqbn }}" --warnings default "build/${{ matrix.sketch }}"
