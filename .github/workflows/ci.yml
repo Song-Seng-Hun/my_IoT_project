@@ -17,6 +17,10 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
+# The ESP32 core and libraries are pinned to the versions that compiled on
+# 2026-11-09. ESP32 core 3.3.12 already marks BluetoothSerial deprecated: it
+# "won't be supported in version 4.0.0 by default", so an unpinned core could
+# break these sketches when 4.0 ships.
 env:
   ESP32_INDEX: https://espressif.github.io/arduino-esp32/package_esp32_index.json
 
@@ -35,16 +39,16 @@ jobs:
             core: arduino:avr
             fqbn: arduino:avr:nano
           - sketch: esp32
-            core: esp32:esp32
+            core: esp32:esp32@3.3.12
             fqbn: esp32:esp32:esp32
           - sketch: ProjectSignal
-            core: esp32:esp32
+            core: esp32:esp32@3.3.12
             fqbn: esp32:esp32:esp32
-            libraries: MFRC522
+            libraries: MFRC522@1.4.12
           - sketch: infra
-            core: esp32:esp32
+            core: esp32:esp32@3.3.12
             fqbn: esp32:esp32:esp32
-            libraries: MFRC522 ESP32Servo
+            libraries: MFRC522@1.4.12 ESP32Servo@3.2.1
     name: ${{ matrix.sketch }} (${{ matrix.fqbn }})
     steps:
       - uses: actions/checkout@v7
